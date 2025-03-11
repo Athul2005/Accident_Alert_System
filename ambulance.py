@@ -69,7 +69,7 @@ if "logged_in_driver" not in st.session_state:
 # --- Function to Play Sound ---
 def play_sound():
     # HTML audio element to play a sound
-    audio_path = "notification.mp3"  # Replace with the path to your sound file
+    audio_path = "notification/notification.mp3"  # Replace with the path to your sound file
     if os.path.exists(audio_path):
         audio_bytes = open(audio_path, "rb").read()
         audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
