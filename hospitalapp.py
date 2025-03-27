@@ -1,4 +1,5 @@
 import streamlit as st
+import ollama
 import sqlite3
 import folium
 from streamlit_folium import st_folium
@@ -127,6 +128,55 @@ def send_telegram_message(chat_id, message):
     else:
         print("Failed to send message:", response.text)
         return False
+    
+# Function to generate a report using the Gemma 3.1 1B model
+def generate_report(patient_details, old_patient):
+    # Prepare the prompt for the model
+    prompt = f"""
+        Based on the patient's details below, determine the most suitable doctor and department:
+
+        ### Current Patient Details:
+        - Pulse Rate: {patient_details[3]}
+        - Oxygen Saturation: {patient_details[4]}
+        - Blood Pressure: {patient_details[5]}
+        - Fractures Detected: {patient_details[6]}
+        - Blood Clotting Rate: {patient_details[7]}
+        - Head Injury: {patient_details[8]}
+        - Burns/External Wounds: {patient_details[9]}
+        - Remarks: {patient_details[10]}
+
+        ### Previous Patient Records:
+        Name: {old_patient[0]}
+        Age: {old_patient[1]}
+        Gender: {old_patient[2]}
+        Medical History: {old_patient[3]}
+        Treatment: {old_patient[4]}
+        Lab Reports: {old_patient[5]}
+        Doctor Notes: {old_patient[6]}
+        Remarks: {old_patient[7]}
+
+        ### Available Doctors and Departments:
+        1. Dr. Priya Nair – Cardiologist (Heart Specialist)
+        2. Dr. Amit Verma – Neurologist (Brain & Nervous System)
+        3. Dr. Sneha Menon – Dermatologist (Skin & Hair Specialist)
+        4. Dr. Arvind Kapoor – Orthopedic Surgeon (Bones & Joints)
+        5. Dr. Meera Iyer – General Surgeon
+        6. Dr. Sanjay Reddy – Neurosurgeon
+        7. Dr. Kavita Bansal – Plastic Surgeon
+        8. Dr. Rohan Joshi – Cardiothoracic Surgeon (Heart & Lungs Surgery)
+        9. Dr. Anjali Gupta – Pediatrician (Child Specialist)
+        10. Dr. Vikram Singh – Oncologist (Cancer Specialist)
+        11. Dr. Deepak Malhotra – Endocrinologist (Diabetes, Hormonal Disorders)
+        12. Dr. Shweta Rao – Gynecologist (Women’s Health)
+        13. Dr. Harish Patel – Urologist (Urinary System & Male Reproductive Health)
+
+        ### Task:
+        Very quickly select the most appropriate doctor and department based on the patient's condition.
+    """
+    
+    # Use Ollama to generate the report
+    response = ollama.generate(model='gemma3:1b', prompt=prompt)
+    return response['response']
 
 # --- Hospital Authentication ---
 if st.session_state.logged_in_hospital is None:
@@ -463,6 +513,46 @@ if st.session_state.logged_in_hospital:
             folium.Marker([hospital[5], hospital[6]], tooltip="Hospital", icon=folium.Icon(icon="hospital", prefix="fa", color="blue")).add_to(route_map)
             folium.Marker([acc_lat, acc_lon], tooltip="Accident", icon=folium.Icon(icon="ambulance", prefix="fa", color="red")).add_to(route_map)
             st_folium(route_map, height=400, width=700)
+
+            # Display the AI recommended Department and doctor
+            if st.button("Ask to AI"): 
+                report = generate_report(patient_medical_info, patient)
+                if report:
+                # Custom CSS for box design
+                    st.markdown("""
+                        <style>
+                            .data-box {
+                                border: 2px solid #4CAF50;
+                                border-radius: 12px;
+                                background-color: #f0f7f4;
+                                padding: 15px;
+                                margin-top: 10px;
+                                box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.1);
+                            }
+                            .title {
+                                font-weight: bold;
+                                color: #4CAF50;
+                                font-size: 18px;
+                            }
+                            .content {
+                                color: #333;
+                                font-size: 16px;
+                                line-height: 1.5;
+                            }
+                        </style>
+                    """, unsafe_allow_html=True)
+
+                    # Data display
+                    st.markdown(f"""
+                        <div class="data-box">
+                            <div class="title">🤖 AI Recommended</div>
+                            <div class="content">
+                                {report}<br>
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.error("Patient not found.")
 
             # Back to Accident List
             if st.button("Back to Accident List"):
