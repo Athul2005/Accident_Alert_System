@@ -110,12 +110,12 @@ elif st.session_state["page"] == "details":
             c.execute("SELECT * FROM patient_medical_info WHERE accident_id = ?", (st.session_state["selected_accident"],))
             patient_medical_info = c.fetchone()
 
-            if patient_medical_info:
-                if patient_medical_info[11]:
-                    st.image(patient_medical_info[11], caption="Ambulance Driver Uploaded Photo", width=200)
-                if patient_medical_info[12]:
-                    st.subheader("Uploaded Video")
-                    st.video(patient_medical_info[12])
+            #if patient_medical_info:
+            #    if patient_medical_info[11]:
+            #        st.image(patient_medical_info[11], caption="Ambulance Driver Uploaded Photo", width=200)
+            #    if patient_medical_info[12]:
+            #        st.subheader("Uploaded Video")
+            #        st.video(patient_medical_info[12])'''
 
             # Fetch and display details of the assigned hospital
             c.execute("SELECT * FROM hospitals WHERE id = ?",(accident_details[10],))

@@ -103,21 +103,32 @@ if st.session_state.logged_in_driver is None:
             pin = st.text_input("4-digit PIN", type="password")
             submitted = st.form_submit_button("Register")
 
-            if submitted:
-                # Check if the phone number already exists
-                c.execute("SELECT * FROM ambulance_drivers WHERE phone = ?", (phone,))
-                existing_user = c.fetchone()
 
-                if existing_user:
-                    st.error("User already exists! Try logging in.")
+            if submitted:
+            # Input validations
+                if not name.strip():
+                    st.error("Full Name is required.")
+                elif not all(x.isalpha() or x.isspace() for x in name):
+                    st.error("Name should contain only letters and spaces.")
+                elif not phone.isdigit() or len(phone) != 10:
+                    st.error("Phone number must be exactly 10 digits.")
+                elif not pin.isdigit() or len(pin) != 4:
+                    st.error("PIN must be exactly 4 digits.")
                 else:
-                    # Insert new user into the database
-                    c.execute(
-                        "INSERT INTO ambulance_drivers (phone, name, pin, status) VALUES (?, ?, ?, ?)",
-                        (phone, name, pin, "Not Ready"),
-                    )
-                    conn.commit()
-                    st.success("Registration successful! Please log in.")
+                    # Check if the phone number already exists
+                    c.execute("SELECT * FROM ambulance_drivers WHERE phone = ?", (phone,))
+                    existing_user = c.fetchone()
+
+                    if existing_user:
+                        st.error("User already exists! Try logging in.")
+                    else:
+                        # Insert new user into the database
+                        c.execute(
+                            "INSERT INTO ambulance_drivers (phone, name, pin, status) VALUES (?, ?, ?, ?)",
+                            (phone, name, pin, "Not Ready"),
+                        )
+                        conn.commit()
+                        st.success("Registration successful! Please log in.")
     
     # Based on the login the driver
     elif choice == "Login":
@@ -127,18 +138,23 @@ if st.session_state.logged_in_driver is None:
             submitted = st.form_submit_button("Login")
 
             if submitted:
-                # Fetch the driver with the given phone number and PIN
-                c.execute("SELECT * FROM ambulance_drivers WHERE phone = ? AND pin = ?", (phone, pin))
-                driver = c.fetchone()
-
-                if driver:
-                    # Update session state with the driver's ID
-                    st.session_state.logged_in_driver = driver[0]  # Store driver ID in session state
-                    st.toast(f"Welcome back, {driver[2]}!", icon="🚑")  # Notification for login success
-                    play_sound()  # Play sound on login
-                    st.rerun()  # Refresh the page to show the dashboard
+                # Input validations
+                if not phone.isdigit() or len(phone) != 10:
+                    st.error("Phone number must be exactly 10 digits.")
+                elif not pin.isdigit() or len(pin) != 4:
+                    st.error("PIN must be exactly 4 digits.")
                 else:
-                    st.error("Invalid credentials! Try again.")
+                    # Fetch the driver with the given phone number and PIN
+                    c.execute("SELECT * FROM ambulance_drivers WHERE phone = ? AND pin = ?", (phone, pin))
+                    driver = c.fetchone()
+
+                    if driver:
+                        st.session_state.logged_in_driver = driver[0]  # Store driver ID in session state
+                        st.toast(f"Welcome back, {driver[2]}!", icon="🚑")
+                        play_sound()  # Play sound on login
+                        st.rerun()  # Refresh the page to show the dashboard
+                    else:
+                        st.error("Invalid credentials! Try again.")
 
 # --- Driver Dashboard ---
 if st.session_state.logged_in_driver:
@@ -264,23 +280,22 @@ if st.session_state.logged_in_driver:
             st.subheader("Patient Medical Information")
 
             with st.form("medical_info_form"):
-                pulse_rate = st.number_input("Pulse Rate (bpm)", min_value=0, max_value=200, value=80)
+                pulse_rate = st.number_input("Pulse Rate (bpm)", min_value=30, max_value=180, value=80)
                 oxygen_saturation = st.number_input("Oxygen Saturation (%)", min_value=0, max_value=100, value=95)
                 bp = st.text_input("Blood Pressure (e.g., 120/80)")
                 fractures_detected = st.radio("Fractures Detected?", ["Yes", "No"], index=1)
                 blood_clotting_rate = st.number_input("Blood Clotting Rate (seconds)", min_value=0, max_value=600, value=120)
-                head_injury = st.selectbox("Head Injury Severity (1 to 5)", options=[1, 2, 3, 4, 5], index=0)
+                head_injury = st.selectbox("Head Injury Severity (1 to 5)", options=[0, 1, 2, 3, 4, 5], index=0)
                 burns_external_wounds = st.text_area("Burns/External Wounds Description")
                 remarks = st.text_area("Any Other Remarks")
 
                 # Add file uploaders for photos and videos
-                uploaded_photos = st.file_uploader("Upload Photos of the Victim", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
+                uploaded_photos = st.file_uploader("Upload Face Image of the Victim ", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
                 uploaded_videos = st.file_uploader("Upload Videos of the Victim", type=["mp4", "avi"])
 
                 submitted = st.form_submit_button("Submit Medical Information")
 
-                #c.execute("""SELECT * FROM hospitals""")
-
+                
                 # Identify the nearest hospital
                 c.execute("""SELECT h.id, h.latitude, h.longitude
                         FROM hospitals h JOIN reports r ON 1=1
@@ -297,7 +312,7 @@ if st.session_state.logged_in_driver:
                 else:
                     hospital_id = hospital[0]
 
-                print("Hospital ID:", hospital_id)
+                #print("Hospital ID:", hospital_id)
                 
 
             if hospital:
@@ -307,16 +322,15 @@ if st.session_state.logged_in_driver:
 
 
             if submitted:
-
+                    
                 c.execute("UPDATE reports SET ambulance_status = ? WHERE id = ?", ("Done", accident[0]))
                 conn.commit()
 
                 # Convert uploaded files to binary data
-                
                 photos_data = [photo.read() for photo in uploaded_photos] if uploaded_photos else None
                 videos_data = uploaded_videos.read() if uploaded_videos else None
 
-                # Save the medical information to the database
+                # Insert medical information
                 c.execute(
                     '''
                     INSERT INTO patient_medical_info (
@@ -341,8 +355,8 @@ if st.session_state.logged_in_driver:
                     ),
                 )
                 conn.commit()
-                st.success("Medical information submitted successfully!")
-                play_sound()  # Play sound on successful submission
+                st.success("✅ Medical information submitted successfully!")
+                play_sound()
 
                 with st.form("data"):
 
@@ -364,7 +378,7 @@ if st.session_state.logged_in_driver:
                     st_folium(accident_map, height=400, width=700)
 
                     hospital_status = st.form_submit_button("Reached Hospital")
-                 
+                
 
     else:
         st.info("No accident assigned or you're not ready.")

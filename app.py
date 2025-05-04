@@ -8,6 +8,7 @@ from streamlit_folium import folium_static, st_folium
 import folium
 from geopy.distance import geodesic  # To calculate distance
 import requests
+import re
 
 # --- Initialize SQLite Database ---
 conn = sqlite3.connect('accident_reporting.db', check_same_thread=False)
@@ -78,16 +79,28 @@ if st.session_state.logged_in_user is None:
             email = st.text_input("Email")
             pin = st.text_input("4-digit PIN", type="password")
             submitted = st.form_submit_button("Register")
-
+            # Validate the data 
             if submitted:
-                c.execute("SELECT * FROM users WHERE phone = ?", (phone,))
-                if c.fetchone():
-                    st.error("User already exists! Try logging in.")
+                if not name.strip().replace(" ", "").isalpha():
+                    st.error("Please enter a valid name (letters and spaces only).")
+                elif not (phone.isdigit() and len(phone) == 10):
+                    st.error("Phone number must be 10 digits.")
+                elif not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+                    st.error("Invalid email format.")
+                elif not (pin.isdigit() and len(pin) == 4):
+                    st.error("PIN must be exactly 4 digits.")
                 else:
-                    c.execute("INSERT INTO users (phone, name, email, pin) VALUES (?, ?, ?, ?)", 
-                              (phone, name, email, pin))
-                    conn.commit()
-                    st.success("Registration successful! Please log in.")
+                    # Check if user already exists
+                    c.execute("SELECT * FROM users WHERE phone = ?", (phone,))
+                    if c.fetchone():
+                        st.error("User already exists! Try logging in.")
+                    else:
+                        c.execute(
+                            "INSERT INTO users (phone, name, email, pin) VALUES (?, ?, ?, ?)", 
+                            (phone, name, email, pin)
+                        )
+                        conn.commit()
+                        st.success("Registration successful! Please log in.")
 
     elif choice == "Login":
         with st.form("login_form"):
@@ -96,16 +109,23 @@ if st.session_state.logged_in_user is None:
             submitted = st.form_submit_button("Login")
 
             if submitted:
-                c.execute("SELECT * FROM users WHERE phone = ? AND pin = ?", (phone, pin))
-                user = c.fetchone()
-                if user:
-                    st.session_state.logged_in_user = phone
-                    st.session_state.username = user[1]  # Store name in session
-                    st.success(f"Welcome back, {user[1]}!")
-                    st.session_state.page = "dashboard"
-                    st.rerun()
+                # Input validations
+                if not (phone.isdigit() and len(phone) == 10):
+                    st.error("Phone number must be 10 digits.")
+                elif not (pin.isdigit() and len(pin) == 4):
+                    st.error("PIN must be exactly 4 digits.")
                 else:
-                    st.error("Invalid credentials! Try again.")
+                    c.execute("SELECT * FROM users WHERE phone = ? AND pin = ?", (phone, pin))
+                    user = c.fetchone()
+                    if user:
+                        st.session_state.logged_in_user = phone
+                        st.session_state.username = user[1]  # Store name in session
+                        st.success(f"Welcome back, {user[1]}!")
+                        st.session_state.page = "dashboard"
+                        st.rerun()
+                    else:
+                        st.error("Invalid credentials! Try again.")
+
 
 # --- Dashboard (After Login) ---
 if st.session_state.logged_in_user:
