@@ -18,7 +18,7 @@ import io
 OSRM_URL = "http://router.project-osrm.org/route/v1/driving"
 
 # Telegram Bot Token (Replace with your actual bot token)
-BOT_TOKEN = "7661586372:AAGtwV2fksGTl6kuS5h9mdr2SDCBqsoD50U"
+BOT_TOKEN = ""
 
 # --- Database Connection ---
 conn = sqlite3.connect("accident_reporting.db", check_same_thread=False)
