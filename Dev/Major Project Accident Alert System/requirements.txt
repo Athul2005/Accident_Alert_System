@@ -1,0 +1,6 @@
+streamlit==1.43.2
+folim==0.19.4
+geopy==2.4.1
+ollama==0.4.7
+numpy==2.2.3
+geocoder==1.38.1
